@@ -1,15 +1,55 @@
-name: CI/CD to ACR & VM
+name: Збірка і деплой
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Login to Azure Container Registry
-        run: echo "ACR login step placeholder"
+    - name: Отримати код
+      uses: actions/checkout@v4
+
+    - name: Логін у ACR
+      run: |
+        echo "${{ secrets.AZURE_CLIENT_SECRET }}" | docker login ${{ secrets.ACR_LOGIN_SERVER }} \
+        -u ${{ secrets.AZURE_CLIENT_ID }} --password-stdin
+
+    - name: Зібрати і пуш vote
+      run: |
+        docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/vote:latest ./vote
+        docker push ${{ secrets.ACR_LOGIN_SERVER }}/vote:latest
+
+    - name: Зібрати і пуш result
+      run: |
+        docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/result:latest ./result
+        docker push ${{ secrets.ACR_LOGIN_SERVER }}/result:latest
+
+    - name: Зібрати і пуш worker
+      run: |
+        docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/worker:latest ./worker
+        docker push ${{ secrets.ACR_LOGIN_SERVER }}/worker:latest
+
+    - name: Оновити compose для використання образів
+      run: |
+        sed -i "s|build: ./vote|image: ${{ secrets.ACR_LOGIN_SERVER }}/vote:latest|g" docker-compose.yml
+        sed -i "s|build: ./result|image: ${{ secrets.ACR_LOGIN_SERVER }}/result:latest|g" docker-compose.yml
+        sed -i "s|build: ./worker|image: ${{ secrets.ACR_LOGIN_SERVER }}/worker:latest|g" docker-compose.yml
+
+    - name: Деплой на VM
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VM_HOST }}
+        username: ${{ secrets.VM_USER }}
+        key: ${{ secrets.VM_KEY }}
+        script: |
+          mkdir -p app
+          cd app
+          cat > docker-compose.yml << 'EOF'
+$(cat docker-compose.yml)
+EOF
+          docker compose pull
+          docker compose up -d --remove-orphans
+          docker compose ps
