@@ -17,7 +17,6 @@ jobs:
         echo "${{ secrets.AZURE_CLIENT_SECRET }}" | docker login ${{ secrets.ACR_LOGIN_SERVER }} \
         -u ${{ secrets.AZURE_CLIENT_ID }} --password-stdin
 
-    # 1) Build + Push тільки для vote, result, worker
     - name: Зібрати і пуш образів
       run: |
         for service in vote result worker; do
@@ -25,14 +24,12 @@ jobs:
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/$service:latest
         done
 
-    # 4) Змінити docker-compose.yml перед деплоєм
     - name: Оновити compose файл
       run: |
         sed -i "s|build: ./vote|image: ${{ secrets.ACR_LOGIN_SERVER }}/vote:latest|g" docker-compose.yml
         sed -i "s|build: ./result|image: ${{ secrets.ACR_LOGIN_SERVER }}/result:latest|g" docker-compose.yml
         sed -i "s|build: ./worker|image: ${{ secrets.ACR_LOGIN_SERVER }}/worker:latest|g" docker-compose.yml
 
-    # 5.1) Копіюємо оновлений файл на VM
     - name: Копіювання compose на VM
       uses: appleboy/scp-action@v0.1.7
       with:
@@ -42,7 +39,6 @@ jobs:
         source: "docker-compose.yml"
         target: "app/"
 
-    # 5.2) Деплой на VM
     - name: Деплой через SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -51,8 +47,7 @@ jobs:
         key: ${{ secrets.VM_KEY }}
         script: |
           cd app
-          # Логінимося в ACR на самій VM, щоб вона могла стягнути образи
-          echo "${{ secrets.AZURE_CLIENT_SECRET }}" | docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.AZURE_CLIENT_ID }} --password-stdin
-          docker compose pull
-          docker compose up -d --remove-orphans
-          docker compose ps
+          echo "${{ secrets.AZURE_CLIENT_SECRET }}" | sudo docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.AZURE_CLIENT_ID }} --password-stdin
+          sudo docker compose pull
+          sudo docker compose up -d --remove-orphans
+          sudo docker compose ps
