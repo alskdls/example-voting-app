@@ -1,0 +1,42 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualMachines_vm_Drebot_name": {
+            "value": null
+        },
+        "vaults_rsv_Drebot_name": {
+            "value": null
+        },
+        "sshPublicKeys_vm_Drebot_key_name": {
+            "value": null
+        },
+        "virtualNetworks_vnet_Drebot_name": {
+            "value": null
+        },
+        "publicIPAddresses_vm_Drebot_ip_name": {
+            "value": null
+        },
+        "registries_acrDrebot5_name": {
+            "value": null
+        },
+        "networkInterfaces_vm_drebot235_z1_name": {
+            "value": null
+        },
+        "workspaces_law_Drebot_name": {
+            "value": null
+        },
+        "networkSecurityGroups_vm_Drebot_nsg_name": {
+            "value": null
+        },
+        "dataCollectionRules_MSVMI_switzerlandnorth_vm_drebot_name": {
+            "value": null
+        },
+        "dataCollectionRules_MSVMOtel_switzerlandnorth_vm_drebot_name": {
+            "value": null
+        },
+        "accounts_defaultazuremonitorworkspace_chn_externalid": {
+            "value": null
+        }
+    }
+}
