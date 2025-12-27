@@ -1,0 +1,15 @@
+name: CI/CD to ACR & VM
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Login to Azure Container Registry
+        run: echo "ACR login step placeholder"
