@@ -17,39 +17,42 @@ jobs:
         echo "${{ secrets.AZURE_CLIENT_SECRET }}" | docker login ${{ secrets.ACR_LOGIN_SERVER }} \
         -u ${{ secrets.AZURE_CLIENT_ID }} --password-stdin
 
-    - name: Зібрати і пуш vote
+    # 1) Build + Push тільки для vote, result, worker
+    - name: Зібрати і пуш образів
       run: |
-        docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/vote:latest ./vote
-        docker push ${{ secrets.ACR_LOGIN_SERVER }}/vote:latest
+        for service in vote result worker; do
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/$service:latest ./$service
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/$service:latest
+        done
 
-    - name: Зібрати і пуш result
-      run: |
-        docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/result:latest ./result
-        docker push ${{ secrets.ACR_LOGIN_SERVER }}/result:latest
-
-    - name: Зібрати і пуш worker
-      run: |
-        docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/worker:latest ./worker
-        docker push ${{ secrets.ACR_LOGIN_SERVER }}/worker:latest
-
-    - name: Оновити compose для використання образів
+    # 4) Змінити docker-compose.yml перед деплоєм
+    - name: Оновити compose файл
       run: |
         sed -i "s|build: ./vote|image: ${{ secrets.ACR_LOGIN_SERVER }}/vote:latest|g" docker-compose.yml
         sed -i "s|build: ./result|image: ${{ secrets.ACR_LOGIN_SERVER }}/result:latest|g" docker-compose.yml
         sed -i "s|build: ./worker|image: ${{ secrets.ACR_LOGIN_SERVER }}/worker:latest|g" docker-compose.yml
 
-    - name: Деплой на VM
+    # 5.1) Копіюємо оновлений файл на VM
+    - name: Копіювання compose на VM
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.VM_HOST }}
+        username: ${{ secrets.VM_USER }}
+        key: ${{ secrets.VM_KEY }}
+        source: "docker-compose.yml"
+        target: "app/"
+
+    # 5.2) Деплой на VM
+    - name: Деплой через SSH
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.VM_HOST }}
         username: ${{ secrets.VM_USER }}
         key: ${{ secrets.VM_KEY }}
         script: |
-          mkdir -p app
           cd app
-          cat > docker-compose.yml << 'EOF'
-$(cat docker-compose.yml)
-EOF
+          # Логінимося в ACR на самій VM, щоб вона могла стягнути образи
+          echo "${{ secrets.AZURE_CLIENT_SECRET }}" | docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.AZURE_CLIENT_ID }} --password-stdin
           docker compose pull
           docker compose up -d --remove-orphans
           docker compose ps
